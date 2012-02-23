@@ -14,8 +14,7 @@ def main():
     exit(1)
     
   connection = library.createConnection();
-
-  print "hi"  
+ 
   ai = AI(connection)
     
   success = library.serverConnect(connection, sys.argv[1], "19000")
