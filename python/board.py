@@ -228,14 +228,14 @@ class board():
         if current.getType() == ord('R'):
           rooks.append(current)
     for rook in rooks:
-      if king.getRank() == rook.getRank():
-        if king.getHasMoved() == 0 and rook.getHasMoved() == 0:
-          if rook.getFile() == 8:
-            if (x+1,y) not in self.locations and (x+2,y) not in self.locations:
-              moves.append((king, (x+2,y)))
-          elif rook.getFile() == 1:
-            if (x-1,y) not in self.locations and (x-2,y) not in self.locations:
-              moves.append((king, (x-2,y)))
+      if king.getHasMoved() == 0 and rook.getHasMoved() == 0:
+        if rook.getFile() == 8:
+          if (x+1,y) not in self.locations and \
+             (x+2,y) not in self.locations and (x+3,y) not in self.locations:
+            moves.append((king, (x+2,y)))
+        elif rook.getFile() == 1:
+          if (x-1,y) not in self.locations and (x-2,y) not in self.locations:
+            moves.append((king, (x-2,y)))
     #return valid move
     return moves
   
@@ -257,7 +257,7 @@ class board():
     moves   = []
     (x,y)   = (pawn.getFile(),pawn.getRank())
     
-    if len(self.ai.moves) == 0:
+    if not self.ai.moves:
       return moves
 
     (lx,ly) = (self.ai.moves[0].getToFile(),self.ai.moves[0].getToRank())
@@ -269,9 +269,12 @@ class board():
           pawns.append(current)
     for enemypawn in pawns:
       if enemypawn.getFile() == lx and enemypawn.getRank() == ly:
-        if abs(ly - py) == 2:
+        if ly - py == 2:
           if (lx == x+1 or lx == x-1) and (ly == y):
             moves.append((pawn, (lx, ly-1)))
+        elif ly - py == -2:
+          if (lx == x+1 or lx == x-1) and (ly == y):
+            moves.append((pawn, (lx, ly+1)))
     return moves
  
   def shallowMove(self, movingPiece, file, rank):
@@ -281,10 +284,8 @@ class board():
     This adds the updated move to the board representation and removes the 
     original location of the piece
     '''
-    for loc in self.locations:
-      if self.locations[loc] == movingPiece:
-         del self.locations[loc] 
-         self.locations[(file, rank)] = movingPiece
+    del self.locations[(movingPiece.getFile(), movingPiece.getRank())]
+    self.locations[(file, rank)] = movingPiece 
  
   def pruneMoves(self, moves):
     '''
@@ -293,15 +294,9 @@ class board():
     If the board is in check currently, I see if a move gets me out, 
     if it doesn't I delete it.
     '''
-    for move in moves:
-      if self.willMoveEndInCheck(moves[0][0], moves[1][0], moves[1][1]):
-        del(move)
-    for move in moves:
-      if self.currentlyInCheck():
-        pass
-    return moves
+    return [x for x in moves if not self.inCheck(x[0], x[1][0], x[1][1])]
  
-  def willMoveEndInCheck(self, movingPiece, file, rank):
+  def inCheck(self, movingPiece, file, rank):
     '''
     I generate a list of all the pieces after this move
     From that I pull out the king.
@@ -309,43 +304,20 @@ class board():
     Then I return True if any pieces end on my king
     Returns False otherwise
     '''
-    newBoard = dict()
-    moves = []
-    for piece in self.ai.pieces:
-      if piece is not movingPiece:
-        newBoard[(piece.getFile(), piece.getRank())] = piece
-    newBoard[(file, rank)] = movingPiece
-    for loc in newBoard:
-      king = newBoard[loc]
-      if self.isPieceMine(king):
-        if king.getType() == ord('K'):
-          break 
     b = board(self.ai, False)
     b.populate()
     b.shallowMove(movingPiece, file, rank)
     moves = b.getMoves()
-    for move in moves:
-      if move[1][0] == king.getFile() and move[1][1] == king.getRank():
-        return True
-    return False
-
-  def currentlyInCheck(self):
+    king = b.getKingsLocation()
+    return any([x[1] == king for x in moves]) 
+    
+  def getKingsLocation(self):
     '''
-    I look at a list of all the pieces currently from that I pull out the king.
-    I create a new board, and look at possible opponent moves
-    Then I return True if any pieces end on my king
-    Returns False otherwise
-    '''  
+    Returns my kings location 
+    '''
     for loc in self.locations:
-      king = self.locations[loc]
-      if self.isPieceMine(king):
-        if king.getType() == ord('K'):
-          break    
-    b = board(self.ai, False)
-    b.populate()
-    moves = b.getMoves()
-    for move in moves:
-      if move[1][0] == king.getFile() and move[1][1] == king.getRank():
-        return True
-    return False
-
+      current = self.locations[loc]
+      if current.getType() == ord('K'):
+        if self.isPieceMine(current) == False:
+          return loc
+  
