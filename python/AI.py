@@ -23,9 +23,14 @@ class AI(BaseAI):
     pass
 
   def run(self):
-    b = board(self)
+    b = board(self, True)
     b.populate()
-    p = random.choice(b.getMoves())
+    validMoves = b.pruneMoves(b.getMoves())
+    p = random.choice(validMoves)
+    for move in validMoves:
+      if move[0] == p[0]:
+        print chr(move[0].getType()), ' File:', move[1][0], 'Rank:', move[1][1]
+    print '======================='
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 
