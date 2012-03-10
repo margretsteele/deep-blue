@@ -3,8 +3,8 @@ from BaseAI import BaseAI
 from GameObject import *
 
 import random
-import board
-from board import *
+from minimax import iddlmm
+from board import board
 
 class AI(BaseAI):
   """The class implementing gameplay logic."""
@@ -25,12 +25,7 @@ class AI(BaseAI):
   def run(self):
     b = board(self, True)
     b.populate()
-    validMoves = b.pruneMoves(b.getMoves())
-    p = random.choice(validMoves)
-    for move in validMoves:
-      if move[0] == p[0]:
-        print chr(move[0].getType()), ' File:', move[1][0], 'Rank:', move[1][1]
-    print '======================='
+    p = iddlmm(b, 2)
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 

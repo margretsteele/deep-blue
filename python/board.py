@@ -1,25 +1,40 @@
 #Author    : Margret Steele
 #Class     : AI
-#Assignment: Game 1 
+#Assignment: Game 2 
 #File      : board.py
+
+from copy import deepcopy
 
 class board(): 
   ''' 
-  locations: list of coordinates -> their piece
-  size     : dimensions of board
-  ai       : reference to ai object, used to access player/piece info 
-  lookAtMe : flag used to allow for generation of either player's moves 
+  locations : list of coordinates -> their piece
+  ai        : reference to ai object, used to access player/piece info 
+  lookAtMe  : flag used to allow for generation of either player's moves 
+  h         : piece value heuristic
+  threatened: list of all threatened pieces
+  moveGen   : dictionary used in optimizing move generation speed 
   '''
   def __init__(self, ai, lookAtMe):
-    self.locations = dict()
-    self.size      = 8
-    self.ai        = ai
-    self.lookAtMe  = lookAtMe
+    self.locations  = dict()
+    self.ai         = ai
+    self.lookAtMe   = lookAtMe
+    self.h          = 0
+    self.moveHist   = []
+    self.threatened = []
+    self.moveGen    = { 'P' : self.pawnMove,
+                        'R' : self.rookMove,
+                        'B' : self.bishopMove,
+                        'N' : self.knightMove,
+                        'Q' : self.queenMove,
+                        'K' : self.kingMove   }
   
   #populates board representation
   def populate(self):
     for piece in self.ai.pieces:
       self.locations[(piece.getFile(), piece.getRank())] = piece
+    for move in self.ai.moves:
+      self.moveHist.append(((move.getToFile(),move.getToRank()), 
+                            (move.getFromFile(),move.getFromRank())))
 
   #returns all the valid moves of each piece
   def getMoves(self):
@@ -27,19 +42,9 @@ class board():
     for loc in self.locations:
       current = self.locations[loc]
       if self.isPieceMine(current):
-        if current.getType() == ord('P'): 
-          moves += self.pawnMove(current.getFile(),current.getRank())
-        if current.getType() == ord('R'): 
-          moves += self.rookMove(current.getFile(),current.getRank())
-        if current.getType() == ord('B'): 
-          moves += self.bishopMove(current.getFile(),current.getRank())
-        if current.getType() == ord('N'): 
-          moves += self.knightMove(current.getFile(),current.getRank())
-        if current.getType() == ord('Q'):
-          moves += self.queenMove(current.getFile(),current.getRank())
-        if current.getType() == ord('K'): 
-          moves += self.kingMove(current.getFile(),current.getRank())
-    return moves     
+        if self.moveGen[chr(current.getType())]:
+          moves += self.moveGen[chr(current.getType())](*loc)
+    return moves
 
   def pawnMove(self, file, rank):
     '''
@@ -49,39 +54,38 @@ class board():
     Third add capture moves
     Look through those moves, only add valid moves
     '''
-    (x,y)         = (file, rank)
+    (x,y)          = (file,rank)
     moves          = []
     validPositions = []
     piece          = self.locations[(file, rank)]
 
     if self.amIBlack() == False: 
       if (x,y+1) not in self.locations:
-        validPositions.append((piece, (x,y+1)))
+        validPositions.append((piece, (x,y+1), (x,y)))
       if self.locations[(x,y)].getHasMoved() == 0 and \
                        (x,y+2) not in self.locations and \
                        (x,y+1) not in self.locations:
-
-        validPositions.append((piece, (x,y+2)))
+        validPositions.append((piece, (x,y+2), (x,y)))
       
       for position in [(x+1,y+1), (x-1,y+1)]:
         if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
-            validPositions.append((piece, position))
+            validPositions.append((piece, position, (x,y)))
       
     else:
       if (x,y-1) not in self.locations:
-        validPositions.append((piece, (x,y-1)))
+        validPositions.append((piece, (x,y-1), (x,y)))
       if self.locations[(x,y)].getHasMoved() == 0 and \
                        (x,y-2) not in self.locations and \
                        (x,y-1) not in self.locations:
-        validPositions.append((piece, (x,y-2)))
+        validPositions.append((piece, (x,y-2), (x,y)))
       
       for position in [(x+1,y-1), (x-1,y-1)]:
         if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
-            validPositions.append((piece, position))
+            validPositions.append((piece, position, (x,y)))
       
-    moves += self.enPassant(piece)
+    validPositions += self.enPassant(piece, x, y)
 
     for loc in validPositions:
       if self.isMoveOnBoard(loc[1][0], loc[1][1]):
@@ -100,14 +104,14 @@ class board():
     moves          = []
     validPositions = []
     piece          = self.locations[(file, rank)]
-    
+
     for position in [(x+1,y+2), (x-1,y+2), (x+1,y-2), (x-1,y-2), 
                      (x+2,y+1), (x+2,y-1), (x-2,y-1), (x-2,y+1)]:
       if position in self.locations:
         if self.isPieceMine(self.locations[position]) == False:
-          validPositions.append((piece, position))
+          validPositions.append((piece, position, (x,y)))
       else:
-        validPositions.append((piece, position))
+        validPositions.append((piece, position, (x,y)))
     for loc in validPositions:
       if self.isMoveOnBoard(loc[1][0], loc[1][1]):
         moves.append(loc)
@@ -130,11 +134,11 @@ class board():
                      (x+1,y+1), (x-1,y-1), (x+1,y-1), (x-1,y+1)]:
       if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
-            validPositions.append((piece, position))
+            validPositions.append((piece, position, (x,y)))
       else:
-        validPositions.append((piece, position))
+        validPositions.append((piece, position, (x,y)))
     
-    moves += self.castling(piece)
+    validPositions += self.castling(piece, x, y)
 
     for loc in validPositions:
       if self.isMoveOnBoard(loc[1][0], loc[1][1]):
@@ -161,7 +165,7 @@ class board():
       -Rook  : in every cardinal direction
       -Bishop: in every diagonal direction
       -Queen : Bishop + Rook moves
-     Include every move in the valid direction until something is hit as an option
+     Include every move in the valid direction until something is hit as move
      Move if there is an enemy on the end spot
      Or if there is nothing on the end spot
      '''
@@ -169,7 +173,7 @@ class board():
     piece = self.locations[(file, rank)]
 
     for (xmod, ymod) in modifiers:
-      (x, y) = (file, rank)
+      (x,y) = (file, rank)
       while True:
         x += xmod
         y += ymod 
@@ -177,69 +181,67 @@ class board():
           break 
         if (x,y) in self.locations:
           if self.isPieceMine(self.locations[(x,y)]) == False:
-            moves.append((piece, (x,y)))
+            moves.append((piece, (x,y), (file,rank)))
           break
-        moves.append((piece, (x,y)))
+        moves.append((piece, (x,y), (file,rank)))
 
     #return all valid moves
     return moves
 
-  def isPieceMine(self, piece):
+  def castling(self, king, x, y):
     '''
-    Based on the lookAtMe flag, return true if the piece being looked at matches
-    the player in scope 
-    (if looking at enemys pieces, my pieces should return false)
-    '''
-    if self.lookAtMe == True:
-      return(piece.getOwner() == self.ai.playerID())
-    else:
-      return(piece.getOwner() != self.ai.playerID())
+    First: return no moves if I am in check
 
-  #make sure board is in bounds
-  def isMoveOnBoard(self, file, rank):
-    return(rank < self.size+1 and rank > 0 and file < self.size+1 and file > 0)
-  
-  def amIBlack(self):
-    '''
-    Based on the lookAtMe flag, return true if the player in scope is Black 
-    '''
-    if self.lookAtMe == True:
-      return(self.ai.playerID() == 1)
-    else:
-      return(self.ai.playerID() == 0)
+      def hasMoved <- only used here so it's only here. Deal with it.
+      This checks if the passed in king or rook has moved from original position
 
-  def castling(self, king):
-    '''
-    First: pull out the king (x,y)
-    Get a list of all the rooks.
+    Check if king has moved
+    Get a list of all my rooks that haven't moved.
     Look at each rook.
-      For that rook, do the king and the rook have the same rank?
-        Yes. Have they both not moved?
-        Yes. Is there nothing between the king and the rook?
+        Is there nothing between the king and the rook?
         Yes. Awesome. Move the king. Since only one move can be moved each turn 
              and the rook will be handled accordingly (Say the devs)
     '''
     rooks = []
     moves = []
-    (x,y) = (king.getFile(), king.getRank())
+   
+    if (x,y) in self.threatened: 
+      return moves
+
+    def hasMoved(piece):
+      blackStart = { 'R':[(1,8),(8,8)],
+                     'K':[(5,8)] }
+      whiteStart = { 'R':[(1,1),(8,1)],
+                     'K':[(5,1)] }
+      if self.amIBlack():
+        return not piece[1] in blackStart[chr(piece[0].getType())]
+      else:
+        return not piece[1] in whiteStart[chr(piece[0].getType())]
+
+    if hasMoved((king, (x,y))):
+      return moves
+
     for loc in self.locations:
       current = self.locations[loc]
-      if self.isPieceMine(current):
-        if current.getType() == ord('R'):
-          rooks.append(current)
+      if current.getType() == ord('R'):
+        if self.isPieceMine(current):
+          if not hasMoved((current, loc)):
+            rooks.append((current, loc))
+
     for rook in rooks:
-      if king.getHasMoved() == 0 and rook.getHasMoved() == 0:
-        if rook.getFile() == 8:
-          if (x+1,y) not in self.locations and \
-             (x+2,y) not in self.locations and (x+3,y) not in self.locations:
-            moves.append((king, (x+2,y)))
-        elif rook.getFile() == 1:
-          if (x-1,y) not in self.locations and (x-2,y) not in self.locations:
-            moves.append((king, (x-2,y)))
+      if rook[1][0] == 1:
+        if (x-1,y) not in self.locations and \
+           (x-2,y) not in self.locations and (x-3,y) not in self.locations:
+          moves.append((king, (x-2,y), (x,y)))
+
+      elif rook[1][0] == 8:
+        if (x+1,y) not in self.locations and (x+2,y) not in self.locations:
+          moves.append((king, (x+2,y), (x,y)))
+
     #return valid move
     return moves
   
-  def enPassant(self, pawn):
+  def enPassant(self, pawn, file, rank):
     '''
     First: pull out my pawn (x,y)
     Get a list of all the enemy pawns.
@@ -255,48 +257,64 @@ class board():
     '''
     pawns   = []
     moves   = []
-    (x,y)   = (pawn.getFile(),pawn.getRank())
+    (x,y)   = (file, rank)
     
     if not self.ai.moves:
       return moves
-
-    (lx,ly) = (self.ai.moves[0].getToFile(),self.ai.moves[0].getToRank())
-    (px,py) = (self.ai.moves[0].getFromFile(),self.ai.moves[0].getFromRank())
+    (lx,ly) = (self.moveHist[0][0])
+    (px,py) = (self.moveHist[0][1])
     for loc in self.locations:
       current = self.locations[loc]
-      if self.isPieceMine(current) == False:
-        if current.getType() == ord('P'):
-          pawns.append(current)
+      if current.getType() == ord('P'):
+        if self.isPieceMine(current) == False:
+          pawns.append((current, loc))
     for enemypawn in pawns:
-      if enemypawn.getFile() == lx and enemypawn.getRank() == ly:
+      if enemypawn[1][0] == lx and enemypawn[1][1] == ly:
         if ly - py == 2:
           if (lx == x+1 or lx == x-1) and (ly == y):
-            moves.append((pawn, (lx, ly-1)))
+            moves.append((pawn, (lx, ly-1), (x,y)))
         elif ly - py == -2:
           if (lx == x+1 or lx == x-1) and (ly == y):
-            moves.append((pawn, (lx, ly+1)))
+            moves.append((pawn, (lx, ly+1), (x,y)))
     return moves
- 
-  def shallowMove(self, movingPiece, file, rank):
+  
+  def getChildren(self):
     '''
-    Since I cannot move a piece instance without actually calling the move 
-    function, I wanted a way to look at the board state after a move.  
-    This adds the updated move to the board representation and removes the 
-    original location of the piece
+    Returns a list of all the children boards with hueristic values for each
     '''
-    del self.locations[(movingPiece.getFile(), movingPiece.getRank())]
-    self.locations[(file, rank)] = movingPiece 
- 
+    moves    = self.pruneMoves(self.getMoves())
+    children = []
+    for move in moves:
+      copyBoard = self.createBoard(move)
+      copyBoard.setHeuristic()
+      children.append((move, copyBoard))
+    return children
+
+  def setHeuristic(self):
+    '''
+    Piece value heuristic
+    Using pre-defined values for each piece, the value of a board is 
+      determined by the amount of pieces*their value
+    Points are detucted for opponents pieces
+    Points are added for my pieces
+    '''
+    pieceVal = {'P':1, 'N':3, 'B':3, 'R':5, 'Q':9, 'K':200}
+    for loc in self.locations:
+      current = self.locations[loc]
+      if self.isPieceMine(current) == self.lookAtMe:
+        self.h += pieceVal[chr(current.getType())]
+      else:
+        self.h -= pieceVal[chr(current.getType())]
+
   def pruneMoves(self, moves):
     '''
     After all the moves for each piece are generated, I prune it.
     I look at each move and see if it will end in check, if it does I delete it
-    If the board is in check currently, I see if a move gets me out, 
-    if it doesn't I delete it.
     '''
-    return [x for x in moves if not self.inCheck(x[0], x[1][0], x[1][1])]
+    moves = [x for x in moves if not self.stalemateCheck(x)]
+    return [x for x in moves if not self.inCheck(x)]
  
-  def inCheck(self, movingPiece, file, rank):
+  def inCheck(self, move):
     '''
     I generate a list of all the pieces after this move
     From that I pull out the king.
@@ -304,12 +322,9 @@ class board():
     Then I return True if any pieces end on my king
     Returns False otherwise
     '''
-    b = board(self.ai, False)
-    b.populate()
-    b.shallowMove(movingPiece, file, rank)
-    moves = b.getMoves()
+    b = self.genThreatenedBits(move)
     king = b.getKingsLocation()
-    return any([x[1] == king for x in moves]) 
+    return any([x[1] == king for x in self.threatened]) 
     
   def getKingsLocation(self):
     '''
@@ -318,6 +333,73 @@ class board():
     for loc in self.locations:
       current = self.locations[loc]
       if current.getType() == ord('K'):
-        if self.isPieceMine(current) == False:
+        if self.isPieceMine(current) == self.lookAtMe:
           return loc
+
+  def stalemateCheck(self, move):
+    '''
+    Makes sure that the latest move doesn't end in a 3 turn stalemate
+    It adds the potential move to a copy of the move history
+    It then compares the first 4 moves with the last 4 moves
+    This verifies the same board state has not be repeated 3 times
+    ***    Borrowed a bit of this from the server code. 
+    '''
+    if len(self.moveHist) < 8:
+      return False
+    newMoveHist = [(move[1], move[2])] + self.moveHist
+    return newMoveHist[0:4] == newMoveHist[4:8]
+
+  def createBoard(self, move):
+    '''
+    In order to make the board state immutable
+    This replaces the need for the shallowMove function
+    It generates a new board with the proper dictionary representation
+    '''
+    b = board(self.ai, not(self.lookAtMe))
+    b.locations  = deepcopy(self.locations)
+    b.moveHist   = deepcopy(self.moveHist)
+    b.threatened = deepcopy(self.threatened)
+    if move:
+      del b.locations[move[2]]
+      b.locations[move[1]] = move[0] 
+    return b
+
+  def genThreatenedBits(self, move):
+    '''
+    This looks at my opponents moves, and returns those that can capture 
+      any of my pieces
+    '''
+    b     = self.createBoard(move)
+    moves = b.getMoves()      
+    for move in moves:
+      if move[1] in b.locations:
+        if self.isPieceMine(b.locations[move[1]]):
+          self.threatened.append(move)
+    return b
+
+  def isPieceMine(self, piece):
+    '''
+    Based on the lookAtMe flag, return true if the piece being looked at matches
+    the player in scope 
+    (if looking at enemys pieces, my pieces should return false)
+    '''
+    if self.lookAtMe == True:
+      return(piece.getOwner() == self.ai.playerID())
+    else:
+      return(piece.getOwner() != self.ai.playerID())
+
+  #make sure board is in bounds
+  def isMoveOnBoard(self, file, rank):
+    return(rank < 9 and rank > 0 and file < 9 and file > 0)
   
+  def amIBlack(self):
+    '''
+    Based on the lookAtMe flag, return true if the player in scope is Black 
+    '''
+    if self.lookAtMe == True:
+      return(self.ai.playerID() == 1)
+    else:
+      return(self.ai.playerID() == 0)
+
+
+
