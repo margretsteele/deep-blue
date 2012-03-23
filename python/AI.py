@@ -3,7 +3,7 @@ from BaseAI import BaseAI
 from GameObject import *
 
 import random
-from minimax import iddlmm
+from minimax import abiddlmm, timeHeur
 from board import board
 
 class AI(BaseAI):
@@ -25,7 +25,8 @@ class AI(BaseAI):
   def run(self):
     b = board(self, True)
     b.populate()
-    p = iddlmm(b, 2)
+    deadline = timeHeur(self)
+    p = abiddlmm(b, 4, deadline)
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 
