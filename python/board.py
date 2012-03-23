@@ -359,7 +359,7 @@ class board():
     b.locations  = deepcopy(self.locations)
     b.moveHist   = deepcopy(self.moveHist)
     b.threatened = deepcopy(self.threatened)
-    if move:
+    if move[2] in b.locations:
       del b.locations[move[2]]
       b.locations[move[1]] = move[0] 
     return b
