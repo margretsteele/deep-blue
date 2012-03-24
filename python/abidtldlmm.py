@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 
-def abiddlmm(board, maxLimit, deadline):
+def abidtldlmm(board, maxLimit, deadline):
   '''
   Calls dlmm the appropriate amount of times
   Returns the best move
@@ -41,6 +41,7 @@ def dlminimax(limit, b, selector, deadline, first, second):
   if limit == 0:
     return b.h
   children = [x[1] for x in b.getChildren()]
+  children.sort(key = lambda x: x.h, reverse = (selector == 0))
   if not children:
     return b.h
   for child in children:
@@ -59,7 +60,7 @@ def dlminimax(limit, b, selector, deadline, first, second):
   return b.h  
 
 def timeHeur(ai):
-  return datetime.now() + timedelta(minutes = 5)
+  return datetime.now() + timedelta(seconds  = 40)
 
 
 def gte(a, b):
