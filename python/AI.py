@@ -26,7 +26,7 @@ class AI(BaseAI):
     b = board(self, True)
     b.populate()
     deadline = timeHeur(self)
-    p = abiddlmm(b, 4, deadline)
+    p = abiddlmm(b, 7, deadline)
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 

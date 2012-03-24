@@ -10,6 +10,7 @@ def abiddlmm(board, maxLimit, deadline):
   beta  = float("inf")
   limit = 1
   while(limit <= maxLimit):
+    print limit
     possibleMove = dlmm(limit, board, deadline, alpha, beta)
     if possibleMove is None:
       return bestMove
@@ -30,7 +31,7 @@ def dlmm(limit, board, deadline, alpha, beta):
     child[1].h = dlminimax(limit-1, child[1], 0, deadline, alpha, beta)
   return max(children, key = lambda x:x[1].h)[0]
 
-def dlminimax(limit, b, selector, deadline, alpha, beta):
+def dlminimax(limit, b, selector, deadline, first, second):
   '''
   This calls its sell recursively until the limit is reached 
   This calls either min or max on the children of the passed in board
@@ -45,24 +46,27 @@ def dlminimax(limit, b, selector, deadline, alpha, beta):
   for child in children:
     if datetime.now() > deadline:
       return None
-    child.h = dlminimax(limit-1, child, selector^1, deadline, alpha, beta)
-    if selector == 0:
-      if child.h <= alpha:
+    child.h = dlminimax(limit-1, child, selector^1, deadline, second, first)
+    if [lte,gte][selector](child.h, first):
+      if selector == 0:
         print "fail high"
-        return child.h
-      beta = min([beta, child.h])
-    else:
-      if child.h >= beta:
+      else:
         print "fail low"
-        return child.h
-      alpha = max([alpha, child.h])
+      return child.h
+    second = [min,max][selector]([second, child.h])
 
   b.h = [min,max][selector]([child.h for child in children])
   return b.h  
 
 def timeHeur(ai):
-  return datetime.now() + timedelta(seconds = 30)
+  return datetime.now() + timedelta(minutes = 5)
 
+
+def gte(a, b):
+  return a >= b
+
+def lte(a, b):
+  return a <= b
 
 
 
