@@ -45,4 +45,7 @@ def main():
 
 
 if __name__ == '__main__':
-  main()
+#  main()
+
+  import cProfile
+  cProfile.run('main()', 'profiling.prof')

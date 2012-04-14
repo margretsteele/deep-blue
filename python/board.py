@@ -286,11 +286,11 @@ class board():
     children = []
     for move in moves:
       copyBoard = self.createBoard(move)
-      copyBoard.setHeuristic()
+      copyBoard.heruisticGen(False)
       children.append((move, copyBoard))
     return children
 
-  def setHeuristic(self):
+  def heruisticGen(self, value):
     '''
     Piece value heuristic
     Using pre-defined values for each piece, the value of a board is 
@@ -298,13 +298,18 @@ class board():
     Points are detucted for opponents pieces
     Points are added for my pieces
     '''
+    heur = 0
     pieceVal = {'P':1, 'N':3, 'B':3, 'R':5, 'Q':9, 'K':200}
     for loc in self.locations:
       current = self.locations[loc]
       if self.isPieceMine(current) == self.lookAtMe:
-        self.h += pieceVal[chr(current.getType())]
+        heur += pieceVal[chr(current.getType())]
       else:
-        self.h -= pieceVal[chr(current.getType())]
+        heur -= pieceVal[chr(current.getType())]
+    if value == False:
+      self.h = heur
+    else:
+      return heur 
 
   def pruneMoves(self, moves):
     '''
