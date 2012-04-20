@@ -1,9 +1,10 @@
 #Author    : Margret Steele
 #Class     : AI
-#Assignment: Game 2 
+#Assignment: Game 4 
 #File      : board.py
 
 from copy import deepcopy
+import random
 
 class board(): 
   ''' 
@@ -39,7 +40,9 @@ class board():
   #returns all the valid moves of each piece
   def getMoves(self):
     moves = []
-    for loc in self.locations:
+    locations = self.locations.keys()
+    random.shuffle(locations)
+    for loc in locations:
       current = self.locations[loc]
       if self.isPieceMine(current):
         if self.moveGen[chr(current.getType())]:

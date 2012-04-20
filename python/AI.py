@@ -3,7 +3,7 @@ from BaseAI import BaseAI
 from GameObject import *
 
 import random
-from abidtldlmm import abidtldlmm, timeHeur
+from qshtabidtldlmm import qshtabidtldlmm, timeHeur
 from board import board
 
 class AI(BaseAI):
@@ -26,7 +26,7 @@ class AI(BaseAI):
     b = board(self, True)
     b.populate()
     deadline = timeHeur(self)
-    p = abidtldlmm(b, 3, 3, deadline)
+    p = qshtabidtldlmm(b, 4, 3, deadline)
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 
