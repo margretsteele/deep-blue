@@ -109,7 +109,7 @@ def quieSearch(child, qlimit, parentHeur):
   Checks to see if there is a positive change of any piece worth more than a 
     pawn being taken. If thats true, then qsearch should occur
   '''
-  return (child[1].heruisticGen(True) - parentHeur) >= 3 and qlimit > 0)
+  return (child[1].heruisticGen(True) - parentHeur) >= 3 and qlimit > 0
 
 #greater than and less than functions	
 def gte(a, b):
