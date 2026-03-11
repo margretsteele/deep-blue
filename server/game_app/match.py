@@ -1,13 +1,14 @@
-from base import *
-from matchUtils import *
-from objects import *
+from .base import *
+from .matchUtils import *
+from .objects import *
 import networking.config.config
 from collections import defaultdict
 from networking.sexpr.sexpr import *
 import os
 import itertools
-import scribe
+from . import scribe
 from copy import deepcopy
+import copy
 import string
 
 Scribe = scribe.Scribe
@@ -32,6 +33,31 @@ class Match(DefaultGameWorld):
     self.playerID = 0
     self.gameNumber = id
     self.TurnsToStalemate = 100
+
+  def __deepcopy__(self, memo):
+    """Custom deepcopy that skips unpicklable network/socket objects."""
+    cls = self.__class__
+    result = cls.__new__(cls)
+    memo[id(self)] = result
+    # Copy only the attributes needed for move legality checking
+    result.objects = deepcopy(self.objects, memo)
+    result.playerID = self.playerID
+    result.moves = self.moves
+    result.turnNumber = self.turnNumber
+    result.TurnsToStalemate = self.TurnsToStalemate
+    result.winner = self.winner
+    result.animations = ["animations"]
+    result.nextid = self.nextid
+    result.maxid = self.maxid
+    # Stub out network-dependent attributes
+    result.players = []
+    result.spectators = []
+    result.turn = None
+    result.controller = None
+    result.scribe = None
+    result.id = self.id
+    result.gameNumber = self.gameNumber
+    return result
 
   def addPlayer(self, connection, type="player"):
     connection.type = type
@@ -74,7 +100,7 @@ class Match(DefaultGameWorld):
     for rank, row in enumerate(board):
       for file, piece in enumerate(row):
         if piece != '.':
-          self.addObject(Piece, [int(str.istitle(piece)), file+1, 8-rank, 0, ord(string.upper(piece))])
+          self.addObject(Piece, [int(piece.istitle()), file+1, 8-rank, 0, ord(piece.upper())])
 
     self.nextTurn()
     return True
@@ -131,7 +157,7 @@ class Match(DefaultGameWorld):
           self.declareDraw("With a King Vs a King and a Knight it is impossible to checkmate, Stalemate!")
           return
     if len(self.objects.pieces) == 4:
-      bishops = filter(lambda piece: piece.type == ord('B'), self.objects.pieces)
+      bishops = list(filter(lambda piece: piece.type == ord('B'), self.objects.pieces))
       if len(bishops) == 2: #Exactly 2 bishops and 2 kings
         if bishops[0].owner != bishops[1].owner:# Opposite team
           if (bishops[0].file + bishops[0].rank) % 2 == (bishops[1].file + bishops[1].rank) % 2: # Same color
@@ -144,7 +170,7 @@ class Match(DefaultGameWorld):
       if i.type != ord('K') and i.type != ord('B'):
         stalemate = False
         break
-      if i.type is ord('B'):
+      if i.type == ord('B'):
         if bColor == -1:
           bColor = (i.rank+i.file)%2
         else:
@@ -251,7 +277,7 @@ class Match(DefaultGameWorld):
     king = [ i for i in self.objects.pieces if i.type == ord('K') and i.owner == owner][0]
     #print "Checking for Check!, King at Rank " + `king.rank` + " File " + `king.file`
     for i in self.objects.values():
-      if isinstance(i,Piece) and i.owner is not owner:
+      if isinstance(i,Piece) and i.owner != owner:
         vMoveReturn = i.verifyMove(king.file,king.rank,ord('Q')) 
         # Kenneth Perry : if the file and rank are bad, why are you checking?
         if vMoveReturn == True and i.file != -1 and i.rank != -1:

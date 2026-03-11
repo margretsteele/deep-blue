@@ -3,7 +3,7 @@
 from twisted.internet import selectreactor
 selectreactor.install()
 
-from sexpr.sexpr import sexpr2str, str2sexpr
+from .sexpr.sexpr import sexpr2str, str2sexpr
 
 from twisted.internet import protocol, reactor
 from twisted.protocols.basic import Int32StringReceiver
@@ -22,11 +22,16 @@ class SexpProtocol(Int32StringReceiver):
     self.app.disconnect(reason)
       
   def stringReceived(self, string):
+    if isinstance(string, bytes):
+      string = string.decode('utf-8')
     expr = str2sexpr(string)
     for command in expr:
       result = self.app.run(command)
       if result:
-        self.sendString(sexpr2str(result))
+        payload = sexpr2str(result)
+        if isinstance(payload, str):
+          payload = payload.encode('utf-8')
+        self.sendString(payload)
 
   @classmethod
   def main(cls, port=19000):

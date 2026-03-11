@@ -3,17 +3,18 @@
 #Assignment: Game 4 
 #File      : board.py
 
-from copy import deepcopy
 import random
 
-class board(): 
-  ''' 
+PIECE_VAL = {'P':1, 'N':3, 'B':3, 'R':5, 'Q':9, 'K':200}
+
+class board():
+  '''
   locations : list of coordinates -> their piece
-  ai        : reference to ai object, used to access player/piece info 
-  lookAtMe  : flag used to allow for generation of either player's moves 
+  ai        : reference to ai object, used to access player/piece info
+  lookAtMe  : flag used to allow for generation of either player's moves
   h         : piece value heuristic
   threatened: list of all threatened pieces
-  moveGen   : dictionary used in optimizing move generation speed 
+  moveGen   : dictionary used in optimizing move generation speed
   '''
   def __init__(self, ai, lookAtMe):
     self.locations  = dict()
@@ -40,9 +41,7 @@ class board():
   #returns all the valid moves of each piece
   def getMoves(self):
     moves = []
-    locations = self.locations.keys()
-    random.shuffle(locations)
-    for loc in locations:
+    for loc in self.locations:
       current = self.locations[loc]
       if self.isPieceMine(current):
         if self.moveGen[chr(current.getType())]:
@@ -302,13 +301,12 @@ class board():
     Points are added for my pieces
     '''
     heur = 0
-    pieceVal = {'P':1, 'N':3, 'B':3, 'R':5, 'Q':9, 'K':200}
     for loc in self.locations:
       current = self.locations[loc]
       if self.isPieceMine(current) == self.lookAtMe:
-        heur += pieceVal[chr(current.getType())]
+        heur += PIECE_VAL[chr(current.getType())]
       else:
-        heur -= pieceVal[chr(current.getType())]
+        heur -= PIECE_VAL[chr(current.getType())]
     if value == False:
       self.h = heur
     else:
@@ -332,7 +330,7 @@ class board():
     '''
     b = self.genThreatenedBits(move)
     king = b.getKingsLocation()
-    return any([x[1] == king for x in self.threatened]) 
+    return any(x[1] == king for x in self.threatened) 
     
   def getKingsLocation(self):
     '''
@@ -364,9 +362,9 @@ class board():
     It generates a new board with the proper dictionary representation
     '''
     b = board(self.ai, not(self.lookAtMe))
-    b.locations  = deepcopy(self.locations)
-    b.moveHist   = deepcopy(self.moveHist)
-    b.threatened = deepcopy(self.threatened)
+    b.locations  = dict(self.locations)
+    b.moveHist   = list(self.moveHist)
+    b.threatened = list(self.threatened)
     if move[2] in b.locations:
       del b.locations[move[2]]
       b.locations[move[1]] = move[0] 

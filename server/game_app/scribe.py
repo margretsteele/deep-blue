@@ -20,7 +20,7 @@ class Scribe:
     self.writeSExpr(["gameName", "chess"])
 
   def writeSExpr(self, message):
-    self.log.write(sexpr2str(message))
+    self.log.write(sexpr2str(message).encode('utf-8'))
 
   def finalize(self):
     self.log.close()

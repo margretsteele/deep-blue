@@ -4,8 +4,8 @@
 # Use this class to verify that a team's login/password combo
 # is valid.
 # 
-import httplib
-import urllib
+import http.client as httplib
+import urllib.parse as urllib
 import json
 import hashlib
 
@@ -62,9 +62,9 @@ class WebServerAuthenticator(object):
 if __name__ == '__main__':
     w = WebServerAuthenticator('r99acm.device.mst.edu:9999')
     if w.auth_team('derp', 'ecBQfAvQ') == 'derp':
-        print "PASSED: got derp"
+        print("PASSED: got derp")
     if  w.auth_team('derp', 'ecBQfAvQ______'):
-        print "FAILED: got name: %s"%name
+        print("FAILED: got name: %s"%name)
     else:
-        print "PASSED: login was wrong"
+        print("PASSED: login was wrong")
         

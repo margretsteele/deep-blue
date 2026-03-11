@@ -1,4 +1,4 @@
-from ObjectHolder import ObjectHolder
+from .ObjectHolder import ObjectHolder
 class GameWorld(object):
   """
   Base class for a game world object

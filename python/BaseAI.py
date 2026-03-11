@@ -22,9 +22,9 @@ class BaseAI:
     from GameObject import Piece
     from GameObject import Player
 
-    BaseAI.moves = [Move(library.getMove(self.connection, i)) for i in xrange(library.getMoveCount(self.connection))]
-    BaseAI.pieces = [Piece(library.getPiece(self.connection, i)) for i in xrange(library.getPieceCount(self.connection))]
-    BaseAI.players = [Player(library.getPlayer(self.connection, i)) for i in xrange(library.getPlayerCount(self.connection))]
+    BaseAI.moves = [Move(library.getMove(self.connection, i)) for i in range(library.getMoveCount(self.connection))]
+    BaseAI.pieces = [Piece(library.getPiece(self.connection, i)) for i in range(library.getPieceCount(self.connection))]
+    BaseAI.players = [Player(library.getPlayer(self.connection, i)) for i in range(library.getPlayerCount(self.connection))]
 
     if not self.initialized:
       self.initialized = True
@@ -32,13 +32,13 @@ class BaseAI:
     BaseAI.iteration += 1;
     if self.runGenerator:
       try:
-        return self.runGenerator.next()
+        return next(self.runGenerator)
       except StopIteration:
         self.runGenerator = None
     r = self.run()
     if hasattr(r, '__iter__'):
       self.runGenerator = r
-      return r.next()
+      return next(r)
     return r
   
   def turnNumber(self):

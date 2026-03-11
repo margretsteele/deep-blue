@@ -32,7 +32,7 @@ class GameApp(AccountsAppMixin, BaseApp):
     else:
       while GameApp.nextid in GameApp.games:
         GameApp.nextid += 1
-      print "Creating game %d"%(GameApp.nextid,)
+      print("Creating game %d"%(GameApp.nextid,))
       self.user = self.name
       self.screenName = self.name
       self.game = Match(GameApp.nextid, self)
@@ -45,7 +45,8 @@ class GameApp(AccountsAppMixin, BaseApp):
   @requireLogin
   @requireTypes(None, int, str)
   def joinGame(self, gameNumber, playerType):
-    """ Joins the specified game"""    
+    """ Joins the specified game"""
+    print(f"[SERVER] joinGame called: gameNumber={gameNumber}, playerType={playerType}, user={self.name}", flush=True)
     if self.game is not None:
       return ["join-game-denied", "You are already in a game"]
     try:
@@ -65,14 +66,17 @@ class GameApp(AccountsAppMixin, BaseApp):
       else: #join a specific game, gameNumber >= 1
         self.game = GameApp.games[gameNumber]
         temp = self.game.addPlayer(self, playerType)
+        print(f"[SERVER] addPlayer returned: {temp}, type: {type(temp)}", flush=True)
         if type(temp) != type(bool()) or not temp:
           self.game = None
           return ["join-game-denied", "Game is full"]
+      print(f"[SERVER] Returning join-accepted for game {gameNumber}", flush=True)
       return ["join-accepted", gameNumber]
     except KeyError:
       self.game = Match(gameNumber, self)
       self.game.addPlayer(self)
       GameApp.games[gameNumber] = self.game
+      print(f"[SERVER] Game {self.game.id} created", flush=True)
       return ["create-game", self.game.id]
 
   @protocolmethod
@@ -93,7 +97,10 @@ class GameApp(AccountsAppMixin, BaseApp):
   @requireGame
   def gameStart(self):
     """Starts game associated with this connections """
-    return self.game.start()
+    print(f"[SERVER] gameStart called by {self.name}, players={len(self.game.players)}", flush=True)
+    result = self.game.start()
+    print(f"[SERVER] gameStart result: {result}", flush=True)
+    return result
 
   @protocolmethod
   @errorBuffer
@@ -119,6 +126,7 @@ class GameApp(AccountsAppMixin, BaseApp):
   @requireTypes(None, int, int, int, int)
   def gameMove(self, piece, file, rank, type):
     """"""
+    print(f"[SERVER] gameMove: piece={piece}, file={file}, rank={rank}, type={type}", flush=True)
     if self.game.turn is not self:
       return "Not your turn."
     return self.game.move(piece, file, rank, type)
@@ -145,13 +153,15 @@ class GameApp(AccountsAppMixin, BaseApp):
       return ['log', logID, ""]
     
     with bz2.BZ2File("logs/" + logID + ".glog", "r") as infile:
-      return ['log', logID, infile.read()]
+      return ['log', logID, infile.read().decode('utf-8')]
 
   def writeSExpr(self, message):
     """ Adds backward compatibility with game logic written for the old
     server code
     """
     payload = sexpr2str(message)
+    if isinstance(payload, str):
+      payload = payload.encode('utf-8')
     self.protocol.sendString(payload)
 
 class TestGameServer(SexpProtocol):

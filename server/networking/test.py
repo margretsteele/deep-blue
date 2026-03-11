@@ -2,12 +2,13 @@
 from dispatch import DispatchProtocol
 from apps import BaseApp, protocolmethod, namedmethod, AccountsAppMixin
 from itertools import repeat
+import functools
 
 
 import time
 
 def fact(n):
-    return reduce(lambda x,y: x*y, xrange(1,n))
+    return functools.reduce(lambda x,y: x*y, range(1,n))
 
 class Ping(AccountsAppMixin, BaseApp):
     def __init__(self, protocol):
@@ -22,7 +23,7 @@ class Ping(AccountsAppMixin, BaseApp):
     @protocolmethod
     def fat_ping(self):
         """ returns "pong" a whole bunch"""
-        return [["pong"] for x in xrange(10000)]
+        return [["pong"] for x in range(10000)]
 
     @protocolmethod
     def null(self):
@@ -52,10 +53,10 @@ class TestLatencyServer(DispatchProtocol):
     apps = Ping
 
     def pre_process_hook(self, line):
-        print "%s sent a line." % self.session_num
+        print("%s sent a line." % self.session_num)
 
     def post_process_hook(self, output):
-        print "Sent a line to %s." % self.session_num
+        print("Sent a line to %s." % self.session_num)
         
 
 if __name__ == "__main__":

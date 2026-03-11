@@ -4,7 +4,7 @@ Creator: Josh Bohde
 Description: Module to parse config
 """
 
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 
 def formatAttr(n):
     """
@@ -55,4 +55,4 @@ def getUserInfo(user, cfgfile):
     return userInfo
 
 if __name__ == "__main__":
-   print getUserInfo("Shell AI", 'config/login.cfg')
+   print(getUserInfo("Shell AI", 'config/login.cfg'))

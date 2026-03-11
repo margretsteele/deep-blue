@@ -1,8 +1,15 @@
 *.o
 *.pyc
+__pycache__/
 *.a
 *~
 *.so
+*.dylib
 *.glog
+*.glog.part
 *.gamelog
+*.prof
+*.zip
+.DS_Store
 moc_*
+server/logs/

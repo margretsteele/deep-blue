@@ -34,8 +34,8 @@ class ConsoleClient(Int32StringReceiver):
       
   def stringReceived(self, line):
     t = time.time()
-    print t-self.t
-    print line
+    print(t-self.t)
+    print(line)
     ConsoleClient.latencies.append(t-self.t)
     if self.queue:
       self.queue -= 1
@@ -43,12 +43,12 @@ class ConsoleClient(Int32StringReceiver):
 
   def startConsole(self):
     exitCmd = ['exit', 'quit', 'done']
-    print "Enter the messages you want to send to the server"
-    print "Example: (whoami)"
-    print "To exit, type exit, quit, or done"
+    print("Enter the messages you want to send to the server")
+    print("Example: (whoami)")
+    print("To exit, type exit, quit, or done")
     message = ""
     while (message not in ['exit', 'quit', 'done']):
-      message = raw_input()
+      message = input()
       self.sendString(message)
         
 def protocol_created(p):

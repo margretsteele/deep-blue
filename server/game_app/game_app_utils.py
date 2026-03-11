@@ -8,7 +8,7 @@ def dashify(str):
     return str
   result = str[0].lower()
   for i in str[1:]:
-    if i in string.uppercase:
+    if i in string.ascii_uppercase:
       result += '-'
     result += i.lower()
   return result
@@ -90,7 +90,7 @@ def requireTypes(*types):
       newargs = []
       if len(args) != len(types):
         return "Expected %d arguements (Received %d)"%(len(types),         len(args))
-      for i in xrange(len(args)):
+      for i in range(len(args)):
         if types[i] is None:
           newargs.append(args[i])
         elif types[i] in [int, str, float]:

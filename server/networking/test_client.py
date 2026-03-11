@@ -33,8 +33,8 @@ class TestClient(protocol.Protocol):
             
     def dataReceived(self, line):
         t = time.time()
-        print t-self.t
-        print line
+        print(t-self.t)
+        print(line)
         TestClient.latencies.append(t-self.t)
         if self.queue:
             self.queue -= 1

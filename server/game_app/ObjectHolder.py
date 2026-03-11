@@ -1,4 +1,4 @@
-import objects
+from . import objects
 
 class ObjectHolder(dict):
   def __init__(self, *args, **kwargs):

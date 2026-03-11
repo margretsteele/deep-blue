@@ -4,9 +4,9 @@ from collections import defaultdict
 from functools import wraps
 import string
 import traceback
-import WebServerAuthenticator
+from . import WebServerAuthenticator
 
-import config.config
+from .config import config
 
 def namedmethod(name):
   def inner(f):
@@ -20,7 +20,7 @@ def dashify(str):
     return str
   result = str[0].lower()
   for i in str[1:]:
-    if i in string.uppercase:
+    if i in string.ascii_uppercase:
       result += '-'
     result += i.lower()
   return result
@@ -33,14 +33,13 @@ class Protocol(type):
   def __new__(cls, name, bases, attrs):
       _mapper = {}
       for d in ([base.__dict__ for base in bases] + [attrs]):
-          for attrname, attrvalue in d.iteritems():
+          for attrname, attrvalue in d.items():
               if getattr(attrvalue, 'is_protocol', 0):
                   _mapper[attrvalue._name] = attrvalue
           attrs["_mapper"] = _mapper
       return super(Protocol, cls).__new__(cls, name, bases, attrs)
 
-class BaseApp(object):
-  __metaclass__ = Protocol
+class BaseApp(object, metaclass=Protocol):
   wrapper = {}
   
   def __init__(self, protocol):
