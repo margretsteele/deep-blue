@@ -1,6 +1,6 @@
 #Author    : Margret Steele
 #Class     : AI
-#Assignment: Game 4 
+#Assignment: Game 4
 #File      : board.py
 
 import random
@@ -13,7 +13,6 @@ class board():
   ai        : reference to ai object, used to access player/piece info
   lookAtMe  : flag used to allow for generation of either player's moves
   h         : piece value heuristic
-  threatened: list of all threatened pieces
   moveGen   : dictionary used in optimizing move generation speed
   '''
   def __init__(self, ai, lookAtMe):
@@ -22,21 +21,76 @@ class board():
     self.lookAtMe   = lookAtMe
     self.h          = 0
     self.moveHist   = []
-    self.threatened = []
     self.moveGen    = { 'P' : self.pawnMove,
                         'R' : self.rookMove,
                         'B' : self.bishopMove,
                         'N' : self.knightMove,
                         'Q' : self.queenMove,
                         'K' : self.kingMove   }
-  
+
   #populates board representation
   def populate(self):
     for piece in self.ai.pieces:
       self.locations[(piece.getFile(), piece.getRank())] = piece
     for move in self.ai.moves:
-      self.moveHist.append(((move.getToFile(),move.getToRank()), 
+      self.moveHist.append(((move.getToFile(),move.getToRank()),
                             (move.getFromFile(),move.getFromRank())))
+    # Pre-compute the root board heuristic for incremental updates
+    self.h = self._computeHeuristic()
+
+  def _computeHeuristic(self):
+    '''Full heuristic computation - only needed at root.'''
+    heur = 0
+    for loc in self.locations:
+      current = self.locations[loc]
+      if self.isPieceMine(current) == self.lookAtMe:
+        heur += PIECE_VAL[chr(current.getType())]
+      else:
+        heur -= PIECE_VAL[chr(current.getType())]
+    return heur
+
+  def endgameBonus(self):
+    '''
+    When ahead in material, reward pushing opponent king to edges/corners
+    and keeping our king close to theirs for mating patterns.
+    '''
+    myKing = None
+    theirKing = None
+    myMaterial = 0
+    theirMaterial = 0
+
+    for loc in self.locations:
+      current = self.locations[loc]
+      ptype = chr(current.getType())
+      isMine = self.isPieceMine(current) == self.lookAtMe
+      if ptype == 'K':
+        if isMine:
+          myKing = loc
+        else:
+          theirKing = loc
+      elif isMine:
+        myMaterial += PIECE_VAL[ptype]
+      else:
+        theirMaterial += PIECE_VAL[ptype]
+
+    if myKing is None or theirKing is None:
+      return 0
+
+    advantage = myMaterial - theirMaterial
+    if advantage < 3:
+      return 0  # only apply in winning endgames
+
+    # Reward opponent king being near edges/corners (center = bad for them)
+    ef, er = theirKing
+    centerDistFile = max(abs(ef - 4), abs(ef - 5))  # 0 at center, 3 at edge
+    centerDistRank = max(abs(er - 4), abs(er - 5))
+    edgeBonus = (centerDistFile + centerDistRank) * 0.3
+
+    # Reward our king being close to their king (for delivering checkmate)
+    kingDist = abs(myKing[0] - ef) + abs(myKing[1] - er)
+    proximityBonus = (14 - kingDist) * 0.2  # closer = better
+
+    return edgeBonus + proximityBonus
 
   #returns all the valid moves of each piece
   def getMoves(self):
@@ -61,19 +115,19 @@ class board():
     validPositions = []
     piece          = self.locations[(file, rank)]
 
-    if self.amIBlack() == False: 
+    if self.amIBlack() == False:
       if (x,y+1) not in self.locations:
         validPositions.append((piece, (x,y+1), (x,y)))
       if self.locations[(x,y)].getHasMoved() == 0 and \
                        (x,y+2) not in self.locations and \
                        (x,y+1) not in self.locations:
         validPositions.append((piece, (x,y+2), (x,y)))
-      
+
       for position in [(x+1,y+1), (x-1,y+1)]:
         if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
             validPositions.append((piece, position, (x,y)))
-      
+
     else:
       if (x,y-1) not in self.locations:
         validPositions.append((piece, (x,y-1), (x,y)))
@@ -81,12 +135,12 @@ class board():
                        (x,y-2) not in self.locations and \
                        (x,y-1) not in self.locations:
         validPositions.append((piece, (x,y-2), (x,y)))
-      
+
       for position in [(x+1,y-1), (x-1,y-1)]:
         if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
             validPositions.append((piece, position, (x,y)))
-      
+
     validPositions += self.enPassant(piece, x, y)
 
     for loc in validPositions:
@@ -107,7 +161,7 @@ class board():
     validPositions = []
     piece          = self.locations[(file, rank)]
 
-    for position in [(x+1,y+2), (x-1,y+2), (x+1,y-2), (x-1,y-2), 
+    for position in [(x+1,y+2), (x-1,y+2), (x+1,y-2), (x-1,y-2),
                      (x+2,y+1), (x+2,y-1), (x-2,y-1), (x-2,y+1)]:
       if position in self.locations:
         if self.isPieceMine(self.locations[position]) == False:
@@ -132,14 +186,14 @@ class board():
     validPositions = []
     piece          = self.locations[(file, rank)]
 
-    for position in [(x+1,y), (x-1,y), (x,y+1), (x,y-1), 
+    for position in [(x+1,y), (x-1,y), (x,y+1), (x,y-1),
                      (x+1,y+1), (x-1,y-1), (x+1,y-1), (x-1,y+1)]:
       if position in self.locations:
           if self.isPieceMine(self.locations[position]) == False:
             validPositions.append((piece, position, (x,y)))
       else:
         validPositions.append((piece, position, (x,y)))
-    
+
     validPositions += self.castling(piece, x, y)
 
     for loc in validPositions:
@@ -178,9 +232,9 @@ class board():
       (x,y) = (file, rank)
       while True:
         x += xmod
-        y += ymod 
+        y += ymod
         if not self.isMoveOnBoard(x,y):
-          break 
+          break
         if (x,y) in self.locations:
           if self.isPieceMine(self.locations[(x,y)]) == False:
             moves.append((piece, (x,y), (file,rank)))
@@ -192,23 +246,14 @@ class board():
 
   def castling(self, king, x, y):
     '''
-    First: return no moves if I am in check
-
-      def hasMoved <- only used here so it's only here. Deal with it.
-      This checks if the passed in king or rook has moved from original position
-
     Check if king has moved
     Get a list of all my rooks that haven't moved.
     Look at each rook.
         Is there nothing between the king and the rook?
-        Yes. Awesome. Move the king. Since only one move can be moved each turn 
-             and the rook will be handled accordingly (Say the devs)
+        Yes. Awesome. Move the king.
     '''
     rooks = []
     moves = []
-   
-    if (x,y) in self.threatened: 
-      return moves
 
     def hasMoved(piece):
       blackStart = { 'R':[(1,8),(8,8)],
@@ -242,7 +287,7 @@ class board():
 
     #return valid move
     return moves
-  
+
   def enPassant(self, pawn, file, rank):
     '''
     First: pull out my pawn (x,y)
@@ -260,7 +305,7 @@ class board():
     pawns   = []
     moves   = []
     (x,y)   = (file, rank)
-    
+
     if not self.ai.moves:
       return moves
     (lx,ly) = (self.moveHist[0][0])
@@ -279,76 +324,42 @@ class board():
           if (lx == x+1 or lx == x-1) and (ly == y):
             moves.append((pawn, (lx, ly+1), (x,y)))
     return moves
-  
+
   def getChildren(self):
     '''
-    Returns a list of all the children boards with hueristic values for each
+    Returns a list of all valid children boards with heuristic values.
+    Combines move generation, legality checking (in-check pruning),
+    and board creation into a single pass to avoid creating each board twice.
     '''
-    moves    = self.pruneMoves(self.getMoves())
+    moves    = self.getMoves()
     children = []
     for move in moves:
-      copyBoard = self.createBoard(move)
-      copyBoard.heruisticGen(False)
-      children.append((move, copyBoard))
+      if self.stalemateCheck(move):
+        continue
+      childBoard = self.createBoard(move)
+      # Check if this move leaves our king in check
+      # childBoard has flipped lookAtMe, so getMoves generates opponent moves
+      opponentMoves = childBoard.getMoves()
+      king = childBoard.getKingsLocation()
+      if king is not None and any(m[1] == king for m in opponentMoves):
+        continue
+      children.append((move, childBoard))
     return children
 
   def heruisticGen(self, value):
     '''
-    Piece value heuristic
-    Using pre-defined values for each piece, the value of a board is 
-      determined by the amount of pieces*their value
-    Points are detucted for opponents pieces
-    Points are added for my pieces
+    Piece value heuristic - only used for root board initialization.
+    Child boards use incremental heuristic from createBoard.
     '''
-    heur = 0
-    for loc in self.locations:
-      current = self.locations[loc]
-      if self.isPieceMine(current) == self.lookAtMe:
-        heur += PIECE_VAL[chr(current.getType())]
-      else:
-        heur -= PIECE_VAL[chr(current.getType())]
+    heur = self._computeHeuristic()
     if value == False:
       self.h = heur
     else:
-      return heur 
-
-  def pruneMoves(self, moves):
-    '''
-    After all the moves for each piece are generated, I prune it.
-    I look at each move and see if it will end in check, if it does I delete it
-    '''
-    moves = [x for x in moves if not self.stalemateCheck(x)]
-    return [x for x in moves if not self.inCheck(x)]
- 
-  def inCheck(self, move):
-    '''
-    I generate a list of all the pieces after this move
-    From that I pull out the king.
-    I create a new board, with the move added
-    Then I return True if any pieces end on my king
-    Returns False otherwise
-    '''
-    b = self.genThreatenedBits(move)
-    king = b.getKingsLocation()
-    return any(x[1] == king for x in self.threatened) 
-    
-  def getKingsLocation(self):
-    '''
-    Returns my kings location 
-    '''
-    for loc in self.locations:
-      current = self.locations[loc]
-      if current.getType() == ord('K'):
-        if self.isPieceMine(current) == self.lookAtMe:
-          return loc
+      return heur
 
   def stalemateCheck(self, move):
     '''
     Makes sure that the latest move doesn't end in a 3 turn stalemate
-    It adds the potential move to a copy of the move history
-    It then compares the first 4 moves with the last 4 moves
-    This verifies the same board state has not be repeated 3 times
-    ***    Borrowed a bit of this from the server code. 
     '''
     if len(self.moveHist) < 8:
       return False
@@ -357,37 +368,47 @@ class board():
 
   def createBoard(self, move):
     '''
-    In order to make the board state immutable
-    This replaces the need for the shallowMove function
-    It generates a new board with the proper dictionary representation
+    Creates a new board state after applying a move.
+    Computes heuristic incrementally from capture value.
     '''
     b = board(self.ai, not(self.lookAtMe))
     b.locations  = dict(self.locations)
-    b.moveHist   = list(self.moveHist)
-    b.threatened = list(self.threatened)
-    if move[2] in b.locations:
-      del b.locations[move[2]]
-      b.locations[move[1]] = move[0] 
+    b.moveHist   = self.moveHist  # shared reference, never modified by children
+
+    # Compute capture value before modifying the board
+    captured_val = 0
+    dest = move[1]
+    src = move[2]
+    if dest in b.locations:
+      captured_val = PIECE_VAL.get(chr(b.locations[dest].getType()), 0)
+
+    if src in b.locations:
+      del b.locations[src]
+    b.locations[dest] = move[0]
+
+    # Incremental heuristic: captures change score
+    # Heuristic is always from the AI's perspective
+    # If it's our turn (lookAtMe=True), we captured their piece: +val
+    # If it's their turn (lookAtMe=False), they captured our piece: -val
+    sign = 1 if self.lookAtMe else -1
+    b.h = self.h + sign * captured_val
+
     return b
 
-  def genThreatenedBits(self, move):
+  def getKingsLocation(self):
     '''
-    This looks at my opponents moves, and returns those that can capture 
-      any of my pieces
+    Returns our king's location (from the perspective of the board's lookAtMe)
     '''
-    b     = self.createBoard(move)
-    moves = b.getMoves()      
-    for move in moves:
-      if move[1] in b.locations:
-        if self.isPieceMine(b.locations[move[1]]):
-          self.threatened.append(move)
-    return b
+    for loc in self.locations:
+      current = self.locations[loc]
+      if current.getType() == ord('K'):
+        if self.isPieceMine(current) == self.lookAtMe:
+          return loc
 
   def isPieceMine(self, piece):
     '''
     Based on the lookAtMe flag, return true if the piece being looked at matches
-    the player in scope 
-    (if looking at enemys pieces, my pieces should return false)
+    the player in scope
     '''
     if self.lookAtMe == True:
       return(piece.getOwner() == self.ai.playerID())
@@ -397,15 +418,12 @@ class board():
   #make sure board is in bounds
   def isMoveOnBoard(self, file, rank):
     return(rank < 9 and rank > 0 and file < 9 and file > 0)
-  
+
   def amIBlack(self):
     '''
-    Based on the lookAtMe flag, return true if the player in scope is Black 
+    Based on the lookAtMe flag, return true if the player in scope is Black
     '''
     if self.lookAtMe == True:
       return(self.ai.playerID() == 1)
     else:
       return(self.ai.playerID() == 0)
-
-
-

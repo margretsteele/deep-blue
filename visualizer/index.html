@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deep Blue - MegaMiner Chess Visualizer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+h1 {
+  font-size: 1.6em;
+  margin-bottom: 4px;
+  color: #7cb3ff;
+  letter-spacing: 1px;
+}
+.subtitle {
+  font-size: 0.85em;
+  color: #888;
+  margin-bottom: 16px;
+}
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+select, button {
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #334;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+select:hover, button:hover { border-color: #7cb3ff; }
+button:active { background: #1a3a6e; }
+button:disabled { opacity: 0.4; cursor: default; }
+.game-info {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+  font-size: 0.9em;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.player-info {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 2px solid #334;
+}
+.player-info.active { border-color: #7cb3ff; box-shadow: 0 0 10px rgba(124,179,255,0.3); }
+.player-info .name { font-weight: bold; }
+.player-info .time { color: #aaa; font-size: 0.85em; }
+.player-info.white .dot { color: #fff; }
+.player-info.black .dot { color: #555; }
+.board-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+canvas { border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+.turn-display {
+  font-size: 1em;
+  margin-bottom: 8px;
+  color: #aaa;
+}
+.turn-display span { color: #7cb3ff; font-weight: bold; }
+.slider-container {
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 8px;
+}
+input[type=range] {
+  width: 100%;
+  accent-color: #7cb3ff;
+}
+.result {
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: #16213e;
+  border-radius: 6px;
+  font-size: 0.9em;
+  border: 1px solid #334;
+}
+.speed-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.85em;
+  color: #888;
+}
+.speed-controls button {
+  padding: 4px 10px;
+  font-size: 0.8em;
+}
+.speed-controls button.active-speed {
+  border-color: #7cb3ff;
+  color: #7cb3ff;
+}
+.keyboard-hint {
+  margin-top: 12px;
+  font-size: 0.75em;
+  color: #555;
+}
+</style>
+</head>
+<body>
+
+<h1>Deep Blue</h1>
+<div class="subtitle">S&T MegaMiner Chess Visualizer</div>
+
+<div class="controls">
+  <select id="gameSelect"></select>
+  <button id="btnFirst" title="First">&laquo;</button>
+  <button id="btnPrev" title="Previous">&lsaquo;</button>
+  <button id="btnPlay" title="Play/Pause">&#9654;</button>
+  <button id="btnNext" title="Next">&rsaquo;</button>
+  <button id="btnLast" title="Last">&raquo;</button>
+  <div class="speed-controls">
+    <span>Speed:</span>
+    <button data-speed="2000">0.5x</button>
+    <button data-speed="1000" class="active-speed">1x</button>
+    <button data-speed="500">2x</button>
+    <button data-speed="200">5x</button>
+  </div>
+</div>
+
+<div class="game-info">
+  <div class="player-info white" id="p0">
+    <span class="dot">&#9823;</span>
+    <span class="name" id="p0name">White</span>
+    <div class="time" id="p0time"></div>
+  </div>
+  <div class="player-info black" id="p1">
+    <span class="dot">&#9823;</span>
+    <span class="name" id="p1name">Black</span>
+    <div class="time" id="p1time"></div>
+  </div>
+</div>
+
+<div class="turn-display">Turn <span id="turnNum">1</span> / <span id="turnTotal">1</span></div>
+
+<div class="board-container">
+  <canvas id="board" width="520" height="520"></canvas>
+</div>
+
+<div class="slider-container">
+  <input type="range" id="turnSlider" min="0" max="0" value="0">
+</div>
+
+<div class="result" id="result"></div>
+
+<div class="keyboard-hint">
+  Arrow keys: prev/next &bull; Space: play/pause &bull; Home/End: first/last
+</div>
+
+<script src="games.js"></script>
+<script>
+const SQUARE = 60;
+const MARGIN = 20;
+const BOARD_PX = SQUARE * 8 + MARGIN * 2;
+
+const canvas = document.getElementById('board');
+canvas.width = BOARD_PX;
+canvas.height = BOARD_PX;
+const ctx = canvas.getContext('2d');
+
+const PIECE_CHARS = {
+  'K': { 0: '\u2654', 1: '\u265A' },
+  'Q': { 0: '\u2655', 1: '\u265B' },
+  'R': { 0: '\u2656', 1: '\u265C' },
+  'B': { 0: '\u2657', 1: '\u265D' },
+  'N': { 0: '\u2658', 1: '\u265E' },
+  'P': { 0: '\u2659', 1: '\u265F' }
+};
+
+const LIGHT = '#f0d9b5';
+const DARK = '#b58863';
+const HIGHLIGHT_FROM = 'rgba(255, 255, 100, 0.5)';
+const HIGHLIGHT_TO = 'rgba(100, 255, 100, 0.5)';
+
+let currentGame = null;
+let currentStateIdx = 0;
+let playing = false;
+let playInterval = null;
+let playSpeed = 1000;
+
+// Populate game selector
+const sel = document.getElementById('gameSelect');
+const gameIds = Object.keys(GAMES).sort((a, b) => parseInt(a) - parseInt(b));
+gameIds.forEach(gid => {
+  const g = GAMES[gid];
+  const w = g.winner;
+  const reason = w ? w.reason : '';
+  const turns = g.states.length;
+  const opt = document.createElement('option');
+  opt.value = gid;
+  opt.textContent = `Game ${gid} (${turns} turns) - ${reason}`;
+  sel.appendChild(opt);
+});
+
+function loadGame(gid) {
+  stopPlay();
+  currentGame = GAMES[gid];
+  currentStateIdx = 0;
+  document.getElementById('turnSlider').max = currentGame.states.length - 1;
+  document.getElementById('turnSlider').value = 0;
+  document.getElementById('turnTotal').textContent = currentGame.states.length;
+  updateResult();
+  render();
+}
+
+function updateResult() {
+  const el = document.getElementById('result');
+  if (!currentGame.winner) {
+    el.textContent = '';
+    return;
+  }
+  const w = currentGame.winner;
+  const side = w.playerId === 0 ? 'White' : 'Black';
+  el.textContent = `Winner: ${w.name} (${side}) - ${w.reason}`;
+}
+
+function render() {
+  if (!currentGame) return;
+  const state = currentGame.states[currentStateIdx];
+  if (!state) return;
+
+  // Find last move for highlighting
+  let moveFrom = null, moveTo = null;
+  if (currentStateIdx > 0) {
+    const prev = currentGame.states[currentStateIdx - 1];
+    // Compare piece positions to find what moved
+    const prevMap = {};
+    prev.pieces.forEach(p => { prevMap[p.id] = p; });
+    state.pieces.forEach(p => {
+      const pp = prevMap[p.id];
+      if (pp && (pp.file !== p.file || pp.rank !== p.rank)) {
+        moveFrom = { file: pp.file, rank: pp.rank };
+        moveTo = { file: p.file, rank: p.rank };
+      }
+    });
+  }
+
+  // Draw board
+  ctx.clearRect(0, 0, BOARD_PX, BOARD_PX);
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+  for (let f = 0; f < 8; f++) {
+    for (let r = 0; r < 8; r++) {
+      const x = MARGIN + f * SQUARE;
+      const y = MARGIN + (7 - r) * SQUARE;
+      ctx.fillStyle = (f + r) % 2 === 0 ? DARK : LIGHT;
+      ctx.fillRect(x, y, SQUARE, SQUARE);
+
+      // Highlight last move
+      if (moveFrom && moveFrom.file === f + 1 && moveFrom.rank === r + 1) {
+        ctx.fillStyle = HIGHLIGHT_FROM;
+        ctx.fillRect(x, y, SQUARE, SQUARE);
+      }
+      if (moveTo && moveTo.file === f + 1 && moveTo.rank === r + 1) {
+        ctx.fillStyle = HIGHLIGHT_TO;
+        ctx.fillRect(x, y, SQUARE, SQUARE);
+      }
+    }
+  }
+
+  // File labels (a-h)
+  ctx.fillStyle = '#888';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  for (let f = 0; f < 8; f++) {
+    ctx.fillText(String.fromCharCode(97 + f), MARGIN + f * SQUARE + SQUARE / 2, BOARD_PX - 4);
+    ctx.fillText(String.fromCharCode(97 + f), MARGIN + f * SQUARE + SQUARE / 2, 14);
+  }
+  // Rank labels (1-8)
+  ctx.textAlign = 'right';
+  for (let r = 0; r < 8; r++) {
+    const y = MARGIN + (7 - r) * SQUARE + SQUARE / 2 + 4;
+    ctx.fillText(String(r + 1), MARGIN - 5, y);
+    ctx.fillText(String(r + 1), BOARD_PX - 3, y);
+  }
+
+  // Draw pieces
+  ctx.font = `${SQUARE - 8}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  state.pieces.forEach(p => {
+    const ch = PIECE_CHARS[p.type];
+    if (!ch) return;
+    const x = MARGIN + (p.file - 1) * SQUARE + SQUARE / 2;
+    const y = MARGIN + (8 - p.rank) * SQUARE + SQUARE / 2;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillText(ch[p.owner], x + 1, y + 2);
+    // piece
+    ctx.fillStyle = p.owner === 0 ? '#ffffff' : '#222222';
+    ctx.fillText(ch[p.owner], x, y);
+  });
+
+  // Update UI
+  document.getElementById('turnNum').textContent = currentStateIdx + 1;
+  document.getElementById('turnSlider').value = currentStateIdx;
+
+  // Player info
+  if (state.players) {
+    document.getElementById('p0name').textContent = state.players[0].name;
+    document.getElementById('p1name').textContent = state.players[1].name;
+    document.getElementById('p0time').textContent = formatTime(state.players[0].time);
+    document.getElementById('p1time').textContent = formatTime(state.players[1].time);
+  }
+
+  // Active player highlight
+  const cp = state.currentPlayer;
+  document.getElementById('p0').classList.toggle('active', cp === 0);
+  document.getElementById('p1').classList.toggle('active', cp === 1);
+}
+
+function formatTime(s) {
+  if (s == null) return '';
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(1);
+  return `${m}:${sec.padStart(4, '0')}`;
+}
+
+function goTo(idx) {
+  if (!currentGame) return;
+  currentStateIdx = Math.max(0, Math.min(idx, currentGame.states.length - 1));
+  render();
+}
+
+function startPlay() {
+  if (playing) return;
+  playing = true;
+  document.getElementById('btnPlay').innerHTML = '&#9646;&#9646;';
+  playInterval = setInterval(() => {
+    if (currentStateIdx >= currentGame.states.length - 1) {
+      stopPlay();
+      return;
+    }
+    goTo(currentStateIdx + 1);
+  }, playSpeed);
+}
+
+function stopPlay() {
+  playing = false;
+  document.getElementById('btnPlay').innerHTML = '&#9654;';
+  if (playInterval) clearInterval(playInterval);
+  playInterval = null;
+}
+
+// Controls
+document.getElementById('btnFirst').onclick = () => { stopPlay(); goTo(0); };
+document.getElementById('btnPrev').onclick = () => { stopPlay(); goTo(currentStateIdx - 1); };
+document.getElementById('btnNext').onclick = () => { stopPlay(); goTo(currentStateIdx + 1); };
+document.getElementById('btnLast').onclick = () => { stopPlay(); goTo(currentGame.states.length - 1); };
+document.getElementById('btnPlay').onclick = () => { playing ? stopPlay() : startPlay(); };
+document.getElementById('gameSelect').onchange = (e) => loadGame(e.target.value);
+document.getElementById('turnSlider').oninput = (e) => { stopPlay(); goTo(parseInt(e.target.value)); };
+
+// Speed buttons
+document.querySelectorAll('.speed-controls button').forEach(btn => {
+  btn.onclick = () => {
+    playSpeed = parseInt(btn.dataset.speed);
+    document.querySelectorAll('.speed-controls button').forEach(b => b.classList.remove('active-speed'));
+    btn.classList.add('active-speed');
+    if (playing) { stopPlay(); startPlay(); }
+  };
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') { stopPlay(); goTo(currentStateIdx - 1); }
+  else if (e.key === 'ArrowRight') { stopPlay(); goTo(currentStateIdx + 1); }
+  else if (e.key === ' ') { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+  else if (e.key === 'Home') { stopPlay(); goTo(0); }
+  else if (e.key === 'End') { stopPlay(); goTo(currentGame.states.length - 1); }
+});
+
+// Load first game
+if (gameIds.length > 0) {
+  // Default to most recent game
+  const defaultGame = gameIds[gameIds.length - 1];
+  sel.value = defaultGame;
+  loadGame(defaultGame);
+}
+</script>
+</body>
+</html>
