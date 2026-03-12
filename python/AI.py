@@ -3,7 +3,7 @@ from BaseAI import BaseAI
 from GameObject import *
 
 import random
-from qshtabidtldlmm import qshtabidtldlmm, timeHeur
+from qshtabidtldlmm import Searcher, timeHeur
 from board import board
 
 class AI(BaseAI):
@@ -17,7 +17,7 @@ class AI(BaseAI):
     return "password"
 
   def init(self):
-    pass
+    self.searcher = Searcher()
 
   def end(self):
     pass
@@ -26,7 +26,7 @@ class AI(BaseAI):
     b = board(self, True)
     b.populate()
     deadline = timeHeur(self)
-    p = qshtabidtldlmm(b, 2, 1, deadline)
+    p = self.searcher.qshtabidtldlmm(b, 4, 3, deadline)
     p[0].move(p[1][0], p[1][1], ord('Q'))
     return 1
 
